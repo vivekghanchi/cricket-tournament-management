@@ -1,13 +1,13 @@
 # Boundary — Cricket Tournament Hub
 
-A responsive, interactive cricket tournament website prototype with team registration, captain squad management, public team/player directories, demo admin approvals, tournament settings and CSV exports.
+A responsive cricket tournament website with Supabase Auth, captain squad management, public team/player directories, administrator approvals, tournament settings and CSV exports.
 
 ## Quick start
 
 1. Download and unzip the project.
 2. Open `index.html` in a modern browser. No build step is needed.
-3. Data is saved in that browser's `localStorage`. Use **Admin demo** in the footer to approve pending teams and change tournament settings.
-4. Use **Register team** to create a pending team and captain demo login. The captain dashboard lets you add/edit/remove players and enforces the configured squad limit in the browser demo.
+3. The site loads teams, players and tournament settings from the configured Supabase project. Captains create accounts and sign in with email and password, then manage their team roster.
+4. Administrators sign in with an account whose `profiles.role` is `admin`; the footer's **Admin sign in** opens the protected organizer workspace.
 
 ## Code quality tools
 
@@ -21,25 +21,26 @@ ESLint and Prettier are configured as development dependencies. Install them wit
 
 - `index.html` — page structure and metadata.
 - `assets/css/styles.css` — site styles.
-- `assets/js/app.js` — interactive demo flows and localStorage data handling.
-- `supabase/migrations/001_initial_schema.sql` — PostgreSQL tables, indexes, triggers, public views and starter RLS policies for a Supabase-backed production build.
+- `assets/js/app.js` — browser UI flows backed by Supabase Auth and PostgreSQL.
+- `supabase/migrations/001_initial_schema.sql` — PostgreSQL tables, indexes, triggers, public views and starter RLS policies.
+- `supabase/migrations/002_browser_client_access.sql`, `003_browser_client_permissions.sql`, and `004_remove_public_team_description.sql` — browser-client grants, least-privilege access policies, and public view updates.
 - `.env.example` — expected environment variable names for a future Next.js/Supabase integration.
 - `tests/smoke-checklist.md` — acceptance checklist for manual/automated testing.
 
-## Demo limitations — read before using real data
+## Operational notes
 
-This is a **functional browser demo**, not a production-secure full-stack deployment. The interactive forms and workflows persist locally in one browser; no real authentication, remote database, server-side authorization, concurrent squad-limit locking, image storage or secure admin login is connected yet. The demo stores a password in local storage for demonstration only. **Do not enter real passwords or real personal information.** Public page mobile numbers are not displayed, but local demo data is not a secure database.
+This is a static browser application that uses Supabase Auth and PostgreSQL directly. Row-level security protects database records, and public views omit player mobile numbers. Configure email confirmation and SMTP in Supabase Auth for reliable account verification. The current client-side squad limit is a convenience check; enforce it in a transaction or database RPC before relying on it under concurrent requests.
 
-To use this with a real tournament, build/connect the Next.js server actions or API routes to Supabase Auth and PostgreSQL, apply the migration, review the RLS policies with tests, and replace all browser-side demo authentication/actions with server-verified operations. In production, use a database transaction or RPC to enforce the squad limit under concurrent requests. Use the Supabase service-role key only on the server.
+The static client uses only the project URL and publishable key. Never expose a service-role key in browser code. Review the RLS policies before accepting real registrations, and use a database transaction or RPC to enforce the squad limit under concurrent requests.
 
 ## Supabase setup
 
 1. Create a Supabase project.
-2. Open the SQL Editor and run `supabase/migrations/001_initial_schema.sql` (review it first for your project requirements).
-3. Configure Supabase Auth with the sign-in method you intend to use. For SMS OTP, configure an SMS provider first; otherwise use password-based auth with Supabase Auth.
-4. Add the URL and anon key to your Next.js server/client environment as appropriate. Keep the service-role key server-only.
+2. Open the SQL Editor and run `supabase/migrations/001_initial_schema.sql`, followed by migrations `002`, `003`, and `004` in order.
+3. In **Authentication → Sign In / Providers → Email**, enable email and password authentication. If email confirmation is enabled, captains verify their email, sign in, then submit team details. Configure SMTP for reliable delivery.
+4. The static prototype's public Supabase URL and publishable key are set in `assets/js/supabase-config.js`. These values are safe to expose in browser code; never place a service-role key there.
 5. Sign up the first trusted administrator normally. In the SQL Editor, find that user's UUID in `auth.users`, then run the commented `UPDATE public.profiles ... role = 'admin'` statement with that UUID.
-6. Test every RLS policy as `anon`, a captain, and an admin before accepting real registrations. The browser prototype is not wired to this database migration.
+6. Review and test every RLS policy as `anon`, a captain, and an admin before accepting real registrations.
 
 ## Recommended production implementation
 
@@ -47,4 +48,4 @@ Use Next.js App Router, TypeScript, Tailwind CSS, Supabase Auth, server-side Sup
 
 ## Deploying the prototype
 
-The `index.html` file can be hosted as a static site on any static hosting provider. This is suitable only for reviewing the design and demo flows. For real tournament operations, deploy the production Next.js/Supabase integration rather than this localStorage prototype.
+The `index.html` file can be hosted on any static hosting provider. Add the deployed site's URL to Supabase Auth's allowed redirect URLs.
