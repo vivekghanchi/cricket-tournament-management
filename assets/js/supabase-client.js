@@ -1,7 +1,16 @@
 (function () {
   const config = window.BOUNDARY_SUPABASE_CONFIG || {};
+  const nativeFetch = window.fetch.bind(window);
+  const trackedFetch = async (...args) => {
+    window.dispatchEvent(new Event('boundary:api-start'));
+    try {
+      return await nativeFetch(...args);
+    } finally {
+      window.dispatchEvent(new Event('boundary:api-end'));
+    }
+  };
   const client = config.url && config.anonKey && window.supabase?.createClient
-    ? window.supabase.createClient(config.url, config.anonKey)
+    ? window.supabase.createClient(config.url, config.anonKey, { global: { fetch: trackedFetch } })
     : null;
 
   function assertReady() {

@@ -1,4 +1,36 @@
 let db = { settings: {}, teams: [], currentUser: null, configured: false };
+let activeApiRequests = 0;
+let loadingShowTimer;
+let loadingHideTimer;
+
+function updateLoadingOverlay() {
+  const overlay = document.getElementById('loadingOverlay');
+  if (!overlay) return;
+  activeApiRequests = Math.max(0, activeApiRequests);
+  if (activeApiRequests) {
+    clearTimeout(loadingHideTimer);
+    if (!overlay.classList.contains('is-visible')) {
+      clearTimeout(loadingShowTimer);
+      loadingShowTimer = setTimeout(() => {
+        if (activeApiRequests) {
+          overlay.classList.add('is-visible');
+          overlay.setAttribute('aria-hidden', 'false');
+          document.getElementById('app')?.setAttribute('aria-busy', 'true');
+        }
+      }, 120);
+    }
+  } else {
+    clearTimeout(loadingShowTimer);
+    loadingHideTimer = setTimeout(() => {
+      overlay.classList.remove('is-visible');
+      overlay.setAttribute('aria-hidden', 'true');
+      document.getElementById('app')?.removeAttribute('aria-busy');
+    }, 140);
+  }
+}
+
+window.addEventListener('boundary:api-start', () => { activeApiRequests += 1; updateLoadingOverlay(); });
+window.addEventListener('boundary:api-end', () => { activeApiRequests -= 1; updateLoadingOverlay(); });
 
 function esc(s = '') { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
 function initials(s = '') { return s.split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase(); }
